@@ -12,12 +12,10 @@ public:
     bool open(const std::string& filename);
     void close();
 
- 
     bool registerUser(const std::string& username, const std::string& password);
     User* loginUser(const std::string& username, const std::string& password);
     bool updateUserBalance(int userId, double newBalance);
     std::vector<int> getUserApartmentIds(int userId);
-
 
     std::vector<Apartment> getAllApartments();
     std::vector<Apartment> getApartmentsByOwner(int ownerId);
@@ -27,6 +25,5 @@ public:
 
 private:
     void createTables();
-
-    void* db = nullptr; // void* to avoid including sqlite3.h in header
+    void* db = nullptr; 
 };

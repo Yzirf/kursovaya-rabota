@@ -12,7 +12,7 @@ Database::~Database() {
 bool Database::open(const std::string& filename) {
     int rc = sqlite3_open(filename.c_str(), (sqlite3**)&db);
     if (rc != SQLITE_OK) {
-        std::cerr << "Не удалось открыть БД: " << sqlite3_errmsg((sqlite3*)db) << "\n";
+        std::cerr << " Не удалось открыть БД: " << sqlite3_errmsg((sqlite3*)db) << "\n";
         return false;
     }
     createTables();
@@ -75,13 +75,6 @@ bool Database::registerUser(const std::string& username, const std::string& pass
     return rc == SQLITE_DONE;
 }
 
-User* loginUserCallback(User* user, const std::string& username, double balance, int id) {
-    user->id = id;
-    user->username = username;
-    user->balance = balance;
-    return user;
-}
-
 User* Database::loginUser(const std::string& username, const std::string& password) {
     const char* sql = "SELECT id, password, balance FROM users WHERE username = ?";
     sqlite3_stmt* stmt;
@@ -96,11 +89,8 @@ User* Database::loginUser(const std::string& username, const std::string& passwo
         if (password == storedPass) {
             int id = sqlite3_column_int(stmt, 0);
             double balance = sqlite3_column_double(stmt, 2);
-            currentUser.id = id;
-            currentUser.username = username;
-            currentUser.password = password;
-            currentUser.balance = balance;
-            currentUser.ownedApartmentIds = getUserApartmentIds(id);
+            currentUser = User(id, username, password, balance);
+            currentUser.setOwnedApartmentIds(getUserApartmentIds(id));
             sqlite3_finalize(stmt);
             return &currentUser;
         }
@@ -150,18 +140,18 @@ std::vector<Apartment> Database::getAllApartments() {
     if (rc != SQLITE_OK) return result;
 
     while (sqlite3_step(stmt) == SQLITE_ROW) {
-        Apartment a;
-        a.id = sqlite3_column_int(stmt, 0);
-        a.ownerId = sqlite3_column_int(stmt, 1);
-        a.ownerUsername = (const char*)sqlite3_column_text(stmt, 2);
-        a.price = sqlite3_column_double(stmt, 3);
-        a.area = sqlite3_column_double(stmt, 4);
-        a.rooms = sqlite3_column_int(stmt, 5);
-        a.isNewBuilding = sqlite3_column_int(stmt, 6) != 0;
-        a.yearBuilt = sqlite3_column_int(stmt, 7);
-        a.floor = sqlite3_column_int(stmt, 8);
-        a.address = (const char*)sqlite3_column_text(stmt, 9);
-        result.push_back(a);
+        int id = sqlite3_column_int(stmt, 0);
+        int ownerId = sqlite3_column_int(stmt, 1);
+        std::string ownerUsername = (const char*)sqlite3_column_text(stmt, 2);
+        double price = sqlite3_column_double(stmt, 3);
+        double area = sqlite3_column_double(stmt, 4);
+        int rooms = sqlite3_column_int(stmt, 5);
+        bool isNew = sqlite3_column_int(stmt, 6) != 0;
+        int yearBuilt = sqlite3_column_int(stmt, 7);
+        int floor = sqlite3_column_int(stmt, 8);
+        std::string address = (const char*)sqlite3_column_text(stmt, 9);
+
+        result.emplace_back(id, ownerId, ownerUsername, price, area, rooms, isNew, yearBuilt, floor, address);
     }
     sqlite3_finalize(stmt);
     return result;
@@ -178,19 +168,17 @@ std::vector<Apartment> Database::getApartmentsByOwner(int ownerId) {
     if (rc != SQLITE_OK) return result;
 
     sqlite3_bind_int(stmt, 1, ownerId);
-
     while (sqlite3_step(stmt) == SQLITE_ROW) {
-        Apartment a;
-        a.id = sqlite3_column_int(stmt, 0);
-        a.ownerId = sqlite3_column_int(stmt, 1);
-        a.price = sqlite3_column_double(stmt, 2);
-        a.area = sqlite3_column_double(stmt, 3);
-        a.rooms = sqlite3_column_int(stmt, 4);
-        a.isNewBuilding = sqlite3_column_int(stmt, 5) != 0;
-        a.yearBuilt = sqlite3_column_int(stmt, 6);
-        a.floor = sqlite3_column_int(stmt, 7);
-        a.address = (const char*)sqlite3_column_text(stmt, 8);
-        result.push_back(a);
+        int id = sqlite3_column_int(stmt, 0);
+        double price = sqlite3_column_double(stmt, 2);
+        double area = sqlite3_column_double(stmt, 3);
+        int rooms = sqlite3_column_int(stmt, 4);
+        bool isNew = sqlite3_column_int(stmt, 5) != 0;
+        int yearBuilt = sqlite3_column_int(stmt, 6);
+        int floor = sqlite3_column_int(stmt, 7);
+        std::string address = (const char*)sqlite3_column_text(stmt, 8);
+
+        result.emplace_back(id, ownerId, "", price, area, rooms, isNew, yearBuilt, floor, address);
     }
     sqlite3_finalize(stmt);
     return result;
@@ -205,14 +193,14 @@ bool Database::addApartment(const Apartment& apt) {
     int rc = sqlite3_prepare_v2((sqlite3*)db, sql, -1, &stmt, nullptr);
     if (rc != SQLITE_OK) return false;
 
-    sqlite3_bind_int(stmt, 1, apt.ownerId);
-    sqlite3_bind_double(stmt, 2, apt.price);
-    sqlite3_bind_double(stmt, 3, apt.area);
-    sqlite3_bind_int(stmt, 4, apt.rooms);
-    sqlite3_bind_int(stmt, 5, apt.isNewBuilding ? 1 : 0);
-    sqlite3_bind_int(stmt, 6, apt.yearBuilt);
-    sqlite3_bind_int(stmt, 7, apt.floor);
-    sqlite3_bind_text(stmt, 8, apt.address.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 1, apt.getOwnerId());
+    sqlite3_bind_double(stmt, 2, apt.getPrice());
+    sqlite3_bind_double(stmt, 3, apt.getArea());
+    sqlite3_bind_int(stmt, 4, apt.getRooms());
+    sqlite3_bind_int(stmt, 5, apt.getIsNewBuilding() ? 1 : 0);
+    sqlite3_bind_int(stmt, 6, apt.getYearBuilt());
+    sqlite3_bind_int(stmt, 7, apt.getFloor());
+    sqlite3_bind_text(stmt, 8, apt.getAddress().c_str(), -1, SQLITE_STATIC);
 
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
@@ -220,14 +208,13 @@ bool Database::addApartment(const Apartment& apt) {
 }
 
 bool Database::buyApartment(int apartmentId, int newOwnerId, double price) {
-  
     const char* sql_get_owner = "SELECT owner_id FROM apartments WHERE id = ?";
     sqlite3_stmt* stmt;
-    int oldOwnerId = -1;
-
     int rc = sqlite3_prepare_v2((sqlite3*)db, sql_get_owner, -1, &stmt, nullptr);
     if (rc != SQLITE_OK) return false;
+
     sqlite3_bind_int(stmt, 1, apartmentId);
+    int oldOwnerId = -1;
     if (sqlite3_step(stmt) == SQLITE_ROW) {
         oldOwnerId = sqlite3_column_int(stmt, 0);
     }
@@ -265,15 +252,16 @@ Apartment* Database::getApartmentById(int id) {
     sqlite3_bind_int(stmt, 1, id);
     static Apartment apt;
     if (sqlite3_step(stmt) == SQLITE_ROW) {
-        apt.id = id;
-        apt.ownerId = sqlite3_column_int(stmt, 0);
-        apt.price = sqlite3_column_double(stmt, 1);
-        apt.area = sqlite3_column_double(stmt, 2);
-        apt.rooms = sqlite3_column_int(stmt, 3);
-        apt.isNewBuilding = sqlite3_column_int(stmt, 4) != 0;
-        apt.yearBuilt = sqlite3_column_int(stmt, 5);
-        apt.floor = sqlite3_column_int(stmt, 6);
-        apt.address = (const char*)sqlite3_column_text(stmt, 7);
+        int ownerId = sqlite3_column_int(stmt, 0);
+        double price = sqlite3_column_double(stmt, 1);
+        double area = sqlite3_column_double(stmt, 2);
+        int rooms = sqlite3_column_int(stmt, 3);
+        bool isNew = sqlite3_column_int(stmt, 4) != 0;
+        int yearBuilt = sqlite3_column_int(stmt, 5);
+        int floor = sqlite3_column_int(stmt, 6);
+        std::string address = (const char*)sqlite3_column_text(stmt, 7);
+
+        apt = Apartment(id, ownerId, "", price, area, rooms, isNew, yearBuilt, floor, address);
         sqlite3_finalize(stmt);
         return &apt;
     }

@@ -14,7 +14,6 @@ using namespace std;
 Database db;
 User* currentUser = nullptr;
 
- 
 void mainMenu();
 void registerUser();
 void loginUser();
@@ -31,7 +30,6 @@ void setColor(int color) {
     SetConsoleTextAttribute(hConsole, color);
 }
 
- 
 void displayAuthMenu(int selected) {
     system("cls");
     string options[] = {
@@ -62,7 +60,6 @@ void displayAuthMenu(int selected) {
     }
 }
 
- 
 void displayMainMenu(int selected) {
     system("cls");
     string options[] = {
@@ -96,13 +93,13 @@ void mainMenu() {
         displayMainMenu(selected);
         key = _getch();
 
-        if (key == 72) { 
+        if (key == 72) {
             selected = (selected - 1 + 4) % 4;
         }
         else if (key == 80) {
             selected = (selected + 1) % 4;
         }
-        else if (key == 13) { 
+        else if (key == 13) {
             switch (selected) {
             case 0: buyApartment(); break;
             case 1: sellApartment(); break;
@@ -114,7 +111,6 @@ void mainMenu() {
         }
     }
 }
-
 
 void displayProfileMenu(int selected) {
     system("cls");
@@ -162,31 +158,6 @@ void viewProfile() {
             case 2: viewOwnedApartments(); system("pause"); break;
             case 3: return;
             }
-        }
-    }
-}
-
-
-void displayBuyMenu(int selected) {
-    system("cls");
-    string options[] = {
-        "1. Показать все квартиры",
-        "2. Настроить параметры поиска",
-        "3. Назад"
-    };
-
-    for (int i = 0; i < 3; i++) {
-        if (i == selected) {
-            setColor(5);
-            cout << "> ";
-            setColor(95);
-            cout << options[i];
-            setColor(5);
-            cout << " <" << endl;
-            setColor(7);
-        }
-        else {
-            cout << "  " << options[i] << endl;
         }
     }
 }
@@ -267,7 +238,7 @@ void buyApartment() {
         else if (key == 80) {
             mainChoice = (mainChoice + 1) % 3;
         }
-        else if (key == 13) { 
+        else if (key == 13) {
             if (mainChoice == 0) {
                 system("cls");
                 setColor(111);
@@ -284,13 +255,13 @@ void buyApartment() {
                     if (!apt) {
                         cout << "Квартира не найдена!\n";
                     }
-                    else if (currentUser->balance < apt->price) {
-                        cout << "Недостаточно средств! Баланс: $" << currentUser->balance << "\n";
+                    else if (currentUser->getBalance() < apt->getPrice()) {
+                        cout << "Недостаточно средств! Баланс: $" << currentUser->getBalance() << "\n";
                     }
-                    else if (db.buyApartment(id, currentUser->id, apt->price)) {
-                        currentUser->balance -= apt->price;
-                        db.updateUserBalance(currentUser->id, currentUser->balance);
-                        currentUser->ownedApartmentIds = db.getUserApartmentIds(currentUser->id);
+                    else if (db.buyApartment(id, currentUser->getId(), apt->getPrice())) {
+                        currentUser->setBalance(currentUser->getBalance() - apt->getPrice());
+                        db.updateUserBalance(currentUser->getId(), currentUser->getBalance());
+                        currentUser->setOwnedApartmentIds(db.getUserApartmentIds(currentUser->getId()));
                         cout << "Квартира успешно куплена!\n";
                     }
                     else {
@@ -301,10 +272,10 @@ void buyApartment() {
                 return;
             }
             else if (mainChoice == 1) {
-                break; 
+                break;
             }
             else {
-                return; 
+                return;
             }
         }
     }
@@ -389,7 +360,7 @@ void buyApartment() {
         }
         else if (key == 13) {
             switch (filterChoice) {
-            case 0: { 
+            case 0: {
                 system("cls");
                 setColor(111);
                 cout << "<-_-_-> Тип жилья <-_-_->\n";
@@ -403,7 +374,7 @@ void buyApartment() {
                 filters.useType = true;
                 break;
             }
-            case 1: { 
+            case 1: {
                 system("cls");
                 setColor(111);
                 cout << "<-_-_-> Цена за квадратный метр <-_-_->\n";
@@ -439,11 +410,10 @@ void buyApartment() {
                 }
                 break;
             }
-                  
-            case 3: { 
+            case 3: {
                 system("cls");
                 setColor(111);
-                cout << "<-_-_-> Количество комнат <-_-_-\n";
+                cout << "<-_-_-> Количество комнат <-_-_->\n";
                 setColor(7);
                 cout << "Минимум: "; int minv = TolkoProstieChisla("");
                 cout << "Максимум: "; int maxv = TolkoProstieChisla("");
@@ -458,7 +428,7 @@ void buyApartment() {
                 }
                 break;
             }
-            case 4: { 
+            case 4: {
                 system("cls");
                 setColor(111);
                 cout << "<-_-_-> Площадь квартиры <-_-_->\n";
@@ -476,35 +446,39 @@ void buyApartment() {
                 }
                 break;
             }
-            case 5: { 
+            case 5: {
                 done = true;
                 break;
             }
-            case 6: { 
+            case 6: {
                 return;
             }
             }
         }
     }
 
- 
     vector<Apartment> candidates;
     for (const auto& a : allApts) {
         bool match = true;
 
-        if (filters.useType && a.isNewBuilding != filters.isNew) match = false;
+        if (filters.useType && a.getIsNewBuilding() != filters.isNew) match = false;
         if (filters.usePricePerSq) {
-            double ppm = a.pricePerSqMeter();
+            double ppm = a.getPricePerSqMeter();
             if (ppm < filters.minPPM || ppm > filters.maxPPM) match = false;
         }
-        if (filters.useTotalPrice && (a.price < filters.minTotal || a.price > filters.maxTotal)) match = false;
-        if (filters.useRooms && (a.rooms < filters.minRooms || a.rooms > filters.maxRooms)) match = false;
-        if (filters.useArea && (a.area < filters.minArea || a.area > filters.maxArea)) match = false;
+        if (filters.useTotalPrice) {
+            if (a.getPrice() < filters.minTotal || a.getPrice() > filters.maxTotal) match = false;
+        }
+        if (filters.useRooms) {
+            if (a.getRooms() < filters.minRooms || a.getRooms() > filters.maxRooms) match = false;
+        }
+        if (filters.useArea) {
+            if (a.getArea() < filters.minArea || a.getArea() > filters.maxArea) match = false;
+        }
 
         if (match) candidates.push_back(a);
     }
 
-   
     system("cls");
     if (candidates.empty()) {
         cout << "По вашим фильтрам ничего не найдено.\n";
@@ -524,13 +498,13 @@ void buyApartment() {
             if (!apt) {
                 cout << "Квартира не найдена!\n";
             }
-            else if (currentUser->balance < apt->price) {
-                cout << "Недостаточно средств! Баланс: $" << currentUser->balance << "\n";
+            else if (currentUser->getBalance() < apt->getPrice()) {
+                cout << "Недостаточно средств! Баланс: $" << currentUser->getBalance() << "\n";
             }
-            else if (db.buyApartment(id, currentUser->id, apt->price)) {
-                currentUser->balance -= apt->price;
-                db.updateUserBalance(currentUser->id, currentUser->balance);
-                currentUser->ownedApartmentIds = db.getUserApartmentIds(currentUser->id);
+            else if (db.buyApartment(id, currentUser->getId(), apt->getPrice())) {
+                currentUser->setBalance(currentUser->getBalance() - apt->getPrice());
+                db.updateUserBalance(currentUser->getId(), currentUser->getBalance());
+                currentUser->setOwnedApartmentIds(db.getUserApartmentIds(currentUser->getId()));
                 cout << "Квартира успешно куплена!\n";
             }
             else {
@@ -541,7 +515,6 @@ void buyApartment() {
     system("pause");
 }
 
- 
 void displaySellMenu(int selected) {
     system("cls");
     string options[] = {
@@ -582,8 +555,7 @@ void sellApartment() {
         }
         else if (key == 13) {
             if (selected == 0) {
-                // Выставить свою
-                auto myApts = db.getApartmentsByOwner(currentUser->id);
+                auto myApts = db.getApartmentsByOwner(currentUser->getId());
                 system("cls");
                 if (myApts.empty()) {
                     cout << "У вас нет квартир для продажи.\n";
@@ -601,51 +573,51 @@ void sellApartment() {
                 return;
             }
             else if (selected == 1) {
-               
                 Apartment a;
-                a.ownerId = currentUser->id;
+                a.setOwnerId(currentUser->getId());
 
                 system("cls");
                 setColor(111);
                 cout << "<-_-_-> Новое объявление о продаже <-_-_->\n";
                 setColor(7);
-                cout << "Цена ($): "; a.price = TolkoChisla("");;
-                cout << "Площадь (м): "; a.area = TolkoChisla("");;
-                cout << "Комнат: "; a.rooms = TolkoProstieChisla("");;
-                cout << "Новостройка (1) или вторичка (0)? "; cin >> a.isNewBuilding;
-                cout << "Год постройки: "; cin >> a.yearBuilt;
-                cout << "Этаж: "; cin >> a.floor;
+                cout << "Цена ($): "; a.setPrice(TolkoChisla(""));
+                cout << "Площадь (м2): "; a.setArea(TolkoChisla(""));
+                cout << "Комнат: "; a.setRooms(TolkoProstieChisla(""));
+                cout << "Новостройка (1) или вторичка (0)? ";
+                int type; cin >> type; a.setIsNewBuilding(type == 1);
+                cout << "Год постройки: "; cin >> type; a.setYearBuilt(type);
+                cout << "Этаж: "; cin >> type; a.setFloor(type);
                 cin.ignore();
                 cout << "Адрес: ";
-                getline(cin, a.address);
+                string addr; getline(cin, addr);
+                a.setAddress(addr);
 
                 if (db.addApartment(a)) {
-                    cout << "\nОбъявление успешно создано!\n";
+                    cout << "\n Объявление успешно создано!\n";
                 }
                 else {
-                    cout << "\nОшибка создания объявления!\n";
+                    cout << "\n Ошибка создания объявления!\n";
                 }
                 system("pause");
                 return;
             }
             else {
-                return; 
+                return;
             }
         }
     }
 }
 
-
 void displayApartment(const Apartment& a) {
-    cout << "ID: " << a.id
-        << " | Адрес: " << a.address
-        << " | Цена: $" << fixed << setprecision(2) << a.price
-        << " | Цена/м2: $" << a.pricePerSqMeter()
-        << " | Площадь: " << a.area << " м2"
-        << " | Комнат: " << a.rooms
-        << " | " << (a.isNewBuilding ? "Новостройка" : "Вторичка")
-        << " | Этаж: " << a.floor
-        << " | Год: " << a.yearBuilt << "\n";
+    cout << "ID: " << a.getId()
+        << " | Адрес: " << a.getAddress()
+        << " | Цена: $" << fixed << setprecision(2) << a.getPrice()
+        << " | Цена/м2: $" << a.getPricePerSqMeter()
+        << " | Площадь: " << a.getArea() << " м2"
+        << " | Комнат: " << a.getRooms()
+        << " | " << (a.getIsNewBuilding() ? "Новостройка" : "Вторичка")
+        << " | Этаж: " << a.getFloor()
+        << " | Год: " << a.getYearBuilt() << "\n";
 }
 
 void checkBalance() {
@@ -653,7 +625,7 @@ void checkBalance() {
     setColor(111);
     cout << "<$$$ Баланс $$$>\n";
     setColor(7);
-    cout << "Ваш баланс: $" << fixed << setprecision(2) << currentUser->balance << "\n";
+    cout << "Ваш баланс: $" << fixed << setprecision(2) << currentUser->getBalance() << "\n";
 }
 
 void topUpBalance() {
@@ -671,23 +643,23 @@ void topUpBalance() {
     }
     cout << "Введите пароль для подтверждения: ";
     cin >> password;
-    if (password != currentUser->password) {
+    if (password != currentUser->getPassword()) {
         cout << "Неверный пароль! Операция отменена.\n";
         return;
     }
-    currentUser->balance += amount;
-    if (db.updateUserBalance(currentUser->id, currentUser->balance)) {
+    currentUser->setBalance(currentUser->getBalance() + amount);
+    if (db.updateUserBalance(currentUser->getId(), currentUser->getBalance())) {
         cout << "Баланс успешно пополнен!\n";
-        cout << "Новый баланс: $" << fixed << setprecision(2) << currentUser->balance << "\n";
+        cout << "Новый баланс: $" << fixed << setprecision(2) << currentUser->getBalance() << "\n";
     }
     else {
-        cout << "Ошибка при обновлении баланса!\n";
+        cout << " Ошибка при обновлении баланса!\n";
     }
 }
 
 void viewOwnedApartments() {
     system("cls");
-    auto apartments = db.getApartmentsByOwner(currentUser->id);
+    auto apartments = db.getApartmentsByOwner(currentUser->getId());
     setColor(111);
     cout << "<-_-_-> Ваши квартиры <-_-_->\n";
     setColor(7);
@@ -700,7 +672,6 @@ void viewOwnedApartments() {
     }
 }
 
-
 void registerUser() {
     system("cls");
     setColor(111);
@@ -710,10 +681,10 @@ void registerUser() {
     cout << "Логин: "; cin >> username;
     cout << "Пароль: "; cin >> password;
     if (db.registerUser(username, password)) {
-        cout << "\nРегистрация успешна!\n";
+        cout << "\n Регистрация успешна!\n";
     }
     else {
-        cout << "\nОшибка: логин уже занят или ошибка БД.\n";
+        cout << "\n Ошибка: логин уже занят или ошибка БД.\n";
     }
 }
 
@@ -727,35 +698,33 @@ void loginUser() {
     cout << "Пароль: "; cin >> password;
     currentUser = db.loginUser(username, password);
     if (currentUser) {
-        cout << "\nВход выполнен успешно!\n";
+        cout << "\n Вход выполнен успешно!\n";
     }
     else {
-        cout << "\nНеверный логин или пароль!\n";
+        cout << "\n Неверный логин или пароль!\n";
     }
 }
 
-
 int main() {
-
     SetConsoleCP(1251);
     SetConsoleOutputCP(1251);
     if (!db.open("real_estate.db")) {
-        cerr << "Не удалось открыть базу данных!\n";
+        cerr << " Не удалось открыть базу данных!\n";
         return 1;
     }
-
 
     if (db.getAllApartments().empty()) {
         db.registerUser("admin", "admin");
         Apartment demo;
-        demo.ownerId = 1;
-        demo.price = 60000;
-        demo.area = 60;
-        demo.rooms = 2;
-        demo.isNewBuilding = false;
-        demo.yearBuilt = 2010;
-        demo.floor = 4;
-        demo.address = "ул. Пушкина, д.10";
+        demo.setId(1);
+        demo.setOwnerId(1);
+        demo.setPrice(60000);
+        demo.setArea(60);
+        demo.setRooms(2);
+        demo.setIsNewBuilding(false);
+        demo.setYearBuilt(2010);
+        demo.setFloor(4);
+        demo.setAddress("ул. Пушкина, д.10");
         db.addApartment(demo);
     }
 
@@ -781,7 +750,7 @@ int main() {
                 loginUser();
                 system("pause");
                 if (currentUser) {
-                    mainMenu(); 
+                    mainMenu();
                 }
             }
             else if (selected == 2) {
