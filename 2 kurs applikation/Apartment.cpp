@@ -1,5 +1,4 @@
 ﻿#include "Apartment.h"
-#include <algorithm>
 
 Apartment::Apartment() : id(-1), ownerId(-1), price(0.0), area(0.0), rooms(0),
 isNewBuilding(false), yearBuilt(0), floor(0) {
